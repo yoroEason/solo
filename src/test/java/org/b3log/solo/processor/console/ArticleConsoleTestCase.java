@@ -196,6 +196,7 @@ public class ArticleConsoleTestCase extends AbstractTestCase {
      *
      * @throws Exception exception
      */
+	@Test
     public void updateArticle() throws Exception {
         final JSONObject article = getArticleRepository().getFirst(new Query());
 

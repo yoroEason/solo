@@ -231,43 +231,56 @@ public class ArticleConsole {
         final JsonRenderer renderer = new JsonRenderer();
         context.setRenderer(renderer);
         try {
-            String path = context.requestURI().substring((Latkes.getContextPath() + "/console/articles/status/").length());
+            final String path = context.requestURI().substring((Latkes.getContextPath() + "/console/articles/status/").length());
             final String status = StringUtils.substringBefore(path, "/");
+            final String params = path.substring((status + "/").length());
 
-            path = path.substring((status + "/").length());
-            final JSONObject requestJSONObject = Solos.buildPaginationRequest(path);
+            final JSONObject requestJSONObject = Solos.buildPaginationRequest(params);
             requestJSONObject.put(Article.ARTICLE_STATUS, "published".equals(status) ? Article.ARTICLE_STATUS_C_PUBLISHED : Article.ARTICLE_STATUS_C_DRAFT);
 
-            final JSONArray excludes = new JSONArray();
-            excludes.put(Article.ARTICLE_CONTENT);
-            excludes.put(Article.ARTICLE_UPDATED);
-            excludes.put(Article.ARTICLE_CREATED);
-            excludes.put(Article.ARTICLE_AUTHOR_ID);
-            excludes.put(Article.ARTICLE_RANDOM_DOUBLE);
-            requestJSONObject.put(Keys.EXCLUDES, excludes);
-
-            final String keyword = StringUtils.trim(context.param("k"));
-            if (StringUtils.isNotBlank(keyword)) {
-                requestJSONObject.put(Common.KEYWORD, keyword);
-            }
-
-            final JSONObject result = articleQueryService.getArticles(requestJSONObject);
-            result.put(Keys.CODE, StatusCodes.SUCC);
-            renderer.setJSONObject(result);
-
-            final List<JSONObject> articles = (List<JSONObject>) result.opt(Article.ARTICLES);
-            for (final JSONObject article : articles) {
-                String title = article.optString(Article.ARTICLE_TITLE);
-                title = StringEscapeUtils.escapeXml(title);
-                article.put(Article.ARTICLE_TITLE, title);
-            }
+            handleArticleSearch(context, requestJSONObject);
         } catch (final Exception e) {
-            LOGGER.log(Level.ERROR, e.getMessage(), e);
-
-            final JSONObject jsonObject = new JSONObject().put(Keys.CODE, StatusCodes.ERR);
-            renderer.setJSONObject(jsonObject);
-            jsonObject.put(Keys.MSG, langPropsService.get("getFailLabel"));
+            handleArticleSearchError(context, e);
         }
+    }
+
+    /**
+ * Search method for articles.
+ *
+ * @param context the request context
+ * @param requestJSONObject the JSON object of the request
+ * @throws ServiceException if an exception occurs during the search process
+ */
+    private void handleArticleSearch(final RequestContext context, final JSONObject requestJSONObject) throws ServiceException {
+        final JsonRenderer renderer = new JsonRenderer();
+        context.setRenderer(renderer);
+
+        final JSONObject result = articleQueryService.getArticles(requestJSONObject);
+        result.put(Keys.CODE, StatusCodes.SUCC);
+        renderer.setJSONObject(result);
+
+        final List<JSONObject> articles = (List<JSONObject>) result.opt(Article.ARTICLES);
+        for (final JSONObject article : articles) {
+            String title = article.optString(Article.ARTICLE_TITLE);
+            title = StringEscapeUtils.escapeXml(title);
+            article.put(Article.ARTICLE_TITLE, title);
+        }
+    }
+
+    /**
+ * Method to handle errors during article search.
+ *
+ * @param context the request context
+ * @param e the error exception
+ */
+    private void handleArticleSearchError(final RequestContext context, final Exception e) {
+        final JsonRenderer renderer = new JsonRenderer();
+        context.setRenderer(renderer);
+        final JSONObject jsonObject = new JSONObject();
+        renderer.setJSONObject(jsonObject);
+        jsonObject.put(Keys.CODE, StatusCodes.ERR);
+        jsonObject.put(Keys.MSG, langPropsService.get("getFailLabel"));
+        LOGGER.log(Level.ERROR, e.getMessage(), e);
     }
 
     /**
